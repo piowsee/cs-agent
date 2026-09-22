@@ -1,0 +1,35 @@
+name: CI
+
+env:
+  CARGO_TERM_COLOR: always
+  MSRV: '1.80'
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request: {} 
+
+  check:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        workspace: ["."]
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@beta
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          workspaces: ${{ matrix.workspace }}
+      - name: Check
+        run: cargo clippy --locked --manifest-path ${{ matrix.workspace }}/Cargo.toml --workspace --all-targets --all-features -- -D warnings
+      - name: rustfmt
+        run: cargo fmt --all --check --manifest-path ${{ matrix.workspace }}/Cargo.toml
+      - name: Build
+        run: cargo build --locked --manifest-path ${{ matrix.workspace }}/Cargo.toml --workspace --all-targets --all-features
+      - name: Test
+        run: cargo test --locked --manifest-path ${{ matrix.workspace }}/Cargo.toml --workspace --all-features
