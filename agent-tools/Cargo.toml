@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-
+agent-workflows = { version = "0.1.0", path = "../agent-workflows" }
+anyhow = "1.0.104"
+rig = "0.42.0"
 
 [lints]
 workspace = true

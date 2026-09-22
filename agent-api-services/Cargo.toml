@@ -5,7 +5,11 @@ edition = "2024"
 
 [dependencies]
 agent-workflows = { path = "../agent-workflows" }
-agent-tools = { path = "../agent-tools" }
+anyhow = "1.0.104"
+axum = "0.8.9"
+dotenvy = "0.15.7"
+sqlx = { version = "0.9", features = ["postgres", "runtime-tokio", "macros", "time"] }
+tokio = { version = "1", features = ["full"] }
 
 [lints]
 workspace = true
