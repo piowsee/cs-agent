@@ -9,7 +9,10 @@ on:
     branches:
       - main
       - dev
-  pull_request: {} 
+  pull_request:
+    branches:
+      - main
+      - dev 
 
   check:
     runs-on: ubuntu-24.04
