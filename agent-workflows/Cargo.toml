@@ -1,0 +1,11 @@
+[package]
+name = "agent-workflows"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rig = "0.42.0"
+tokio = { version = "1.53.1", features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true
