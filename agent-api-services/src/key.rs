@@ -30,7 +30,11 @@ pub(crate) fn generate() -> GeneratedKey {
     let prefix = plaintext[..PREFIX_LEN].to_owned();
     let hash = hash_key(&plaintext);
 
-    GeneratedKey { plaintext, prefix, hash }
+    GeneratedKey {
+        plaintext,
+        prefix,
+        hash,
+    }
 }
 
 /// Returns the hex-encoded SHA-256 hash of `key`.

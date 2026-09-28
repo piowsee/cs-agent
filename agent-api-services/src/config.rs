@@ -62,7 +62,12 @@ impl Config {
             None => 5,
         };
 
-        Ok(Self { database_url, admin_api_key, bind_addr, db_max_connections })
+        Ok(Self {
+            database_url,
+            admin_api_key,
+            bind_addr,
+            db_max_connections,
+        })
     }
 }
 
@@ -74,8 +79,10 @@ mod tests {
 
     /// Builds a lookup closure over a fixed set of key/value pairs.
     fn source(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> {
-        let map: HashMap<String, String> =
-            pairs.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect();
+        let map: HashMap<String, String> = pairs
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+            .collect();
         move |key| map.get(key).cloned()
     }
 
@@ -109,8 +116,8 @@ mod tests {
 
     #[test]
     fn rejects_missing_database_url() {
-        let err = Config::from_source(source(&[("ADMIN_API_KEY", "secret")]))
-            .expect_err("should fail");
+        let err =
+            Config::from_source(source(&[("ADMIN_API_KEY", "secret")])).expect_err("should fail");
         assert!(err.to_string().contains("DATABASE_URL"));
     }
 

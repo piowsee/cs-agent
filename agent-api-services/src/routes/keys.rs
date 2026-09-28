@@ -3,8 +3,8 @@
 //! Every handler here sits behind [`crate::auth::api_key_auth`], which injects
 //! the [`AuthenticatedKey`] these handlers read.
 
-use axum::Json;
 use axum::Extension;
+use axum::Json;
 use axum::extract::State;
 
 use crate::auth::AuthenticatedKey;

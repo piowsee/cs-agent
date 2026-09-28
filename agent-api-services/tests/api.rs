@@ -52,7 +52,12 @@ fn request(
 async fn send(app: &Router, req: Request<Body>) -> (StatusCode, Value) {
     let response = app.clone().oneshot(req).await.expect("router response");
     let status = response.status();
-    let bytes = response.into_body().collect().await.expect("read body").to_bytes();
+    let bytes = response
+        .into_body()
+        .collect()
+        .await
+        .expect("read body")
+        .to_bytes();
     let json = if bytes.is_empty() {
         Value::Null
     } else {
@@ -65,8 +70,11 @@ async fn send(app: &Router, req: Request<Body>) -> (StatusCode, Value) {
 async fn create_key(app: &Router, limit: i64) -> (String, String) {
     let body = json!({ "name": "test", "workflow_limit": limit,
                        "vector_store_url": "https://vec.example/store" });
-    let (status, json) =
-        send(app, request("POST", "/admin/keys", Some(ADMIN_KEY), None, Some(body))).await;
+    let (status, json) = send(
+        app,
+        request("POST", "/admin/keys", Some(ADMIN_KEY), None, Some(body)),
+    )
+    .await;
     assert_eq!(status, StatusCode::CREATED);
     let id = json["id"].as_str().expect("id").to_owned();
     let api_key = json["api_key"].as_str().expect("api_key").to_owned();
@@ -90,13 +98,19 @@ async fn admin_requires_key(pool: PgPool) {
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
     // Wrong admin header -> 403.
-    let (status, _) =
-        send(&app, request("GET", "/admin/keys", Some("nope"), None, None)).await;
+    let (status, _) = send(
+        &app,
+        request("GET", "/admin/keys", Some("nope"), None, None),
+    )
+    .await;
     assert_eq!(status, StatusCode::FORBIDDEN);
 
     // Correct admin header -> 200.
-    let (status, body) =
-        send(&app, request("GET", "/admin/keys", Some(ADMIN_KEY), None, None)).await;
+    let (status, body) = send(
+        &app,
+        request("GET", "/admin/keys", Some(ADMIN_KEY), None, None),
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
     assert!(body.as_array().expect("array").is_empty());
 }
@@ -105,12 +119,25 @@ async fn admin_requires_key(pool: PgPool) {
 async fn create_returns_plaintext_once_and_hides_hash(pool: PgPool) {
     let app = app(pool);
     let body = json!({ "workflow_limit": 5, "vector_store_url": "https://v/x" });
-    let (status, json) =
-        send(&app, request("POST", "/admin/keys", Some(ADMIN_KEY), None, Some(body))).await;
+    let (status, json) = send(
+        &app,
+        request("POST", "/admin/keys", Some(ADMIN_KEY), None, Some(body)),
+    )
+    .await;
 
     assert_eq!(status, StatusCode::CREATED);
-    assert!(json["api_key"].as_str().expect("api_key").starts_with("sk_"));
-    assert!(json["key_prefix"].as_str().expect("prefix").starts_with("sk_"));
+    assert!(
+        json["api_key"]
+            .as_str()
+            .expect("api_key")
+            .starts_with("sk_")
+    );
+    assert!(
+        json["key_prefix"]
+            .as_str()
+            .expect("prefix")
+            .starts_with("sk_")
+    );
     assert_eq!(json["workflow_limit"], 5);
     assert_eq!(json["workflow_used"], 0);
     // The stored hash must never be serialized to clients.
@@ -121,8 +148,11 @@ async fn create_returns_plaintext_once_and_hides_hash(pool: PgPool) {
 async fn rejects_negative_limit_on_create(pool: PgPool) {
     let app = app(pool);
     let body = json!({ "workflow_limit": -1 });
-    let (status, _) =
-        send(&app, request("POST", "/admin/keys", Some(ADMIN_KEY), None, Some(body))).await;
+    let (status, _) = send(
+        &app,
+        request("POST", "/admin/keys", Some(ADMIN_KEY), None, Some(body)),
+    )
+    .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 }
 
@@ -132,8 +162,11 @@ async fn full_crud_lifecycle(pool: PgPool) {
     let (id, _) = create_key(&app, 10).await;
 
     // List shows the new key.
-    let (status, body) =
-        send(&app, request("GET", "/admin/keys", Some(ADMIN_KEY), None, None)).await;
+    let (status, body) = send(
+        &app,
+        request("GET", "/admin/keys", Some(ADMIN_KEY), None, None),
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body.as_array().expect("array").len(), 1);
 
@@ -145,8 +178,11 @@ async fn full_crud_lifecycle(pool: PgPool) {
 
     // Update the vector store URL and the limit.
     let patch = json!({ "workflow_limit": 99, "vector_store_url": "https://v/updated" });
-    let (status, body) =
-        send(&app, request("PATCH", &uri, Some(ADMIN_KEY), None, Some(patch))).await;
+    let (status, body) = send(
+        &app,
+        request("PATCH", &uri, Some(ADMIN_KEY), None, Some(patch)),
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["workflow_limit"], 99);
     assert_eq!(body["vector_store_url"], "https://v/updated");
@@ -167,8 +203,11 @@ async fn unknown_ids_return_404(pool: PgPool) {
     assert_eq!(status, StatusCode::NOT_FOUND);
 
     let patch = json!({ "workflow_limit": 1 });
-    let (status, _) =
-        send(&app, request("PATCH", uri, Some(ADMIN_KEY), None, Some(patch))).await;
+    let (status, _) = send(
+        &app,
+        request("PATCH", uri, Some(ADMIN_KEY), None, Some(patch)),
+    )
+    .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 
     let (status, _) = send(&app, request("DELETE", uri, Some(ADMIN_KEY), None, None)).await;
@@ -182,8 +221,11 @@ async fn rejects_negative_values_on_update(pool: PgPool) {
     let uri = format!("/admin/keys/{id}");
 
     let patch = json!({ "workflow_used": -5 });
-    let (status, _) =
-        send(&app, request("PATCH", &uri, Some(ADMIN_KEY), None, Some(patch))).await;
+    let (status, _) = send(
+        &app,
+        request("PATCH", &uri, Some(ADMIN_KEY), None, Some(patch)),
+    )
+    .await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
 }
 
@@ -201,8 +243,7 @@ async fn client_auth_is_enforced(pool: PgPool) {
     assert_eq!(status, StatusCode::UNAUTHORIZED);
 
     // Valid key -> 200 with the caller's own metadata.
-    let (status, body) =
-        send(&app, request("GET", "/me", None, Some(&api_key), None)).await;
+    let (status, body) = send(&app, request("GET", "/me", None, Some(&api_key), None)).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["workflow_limit"], 3);
     assert_eq!(body["vector_store_url"], "https://vec.example/store");
@@ -215,20 +256,29 @@ async fn workflows_enforce_quota(pool: PgPool) {
     let (_, api_key) = create_key(&app, 2).await;
 
     // First two workflow runs succeed and count up.
-    let (status, body) =
-        send(&app, request("POST", "/workflows", None, Some(&api_key), None)).await;
+    let (status, body) = send(
+        &app,
+        request("POST", "/workflows", None, Some(&api_key), None),
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["used"], 1);
     assert_eq!(body["remaining"], 1);
 
-    let (status, body) =
-        send(&app, request("POST", "/workflows", None, Some(&api_key), None)).await;
+    let (status, body) = send(
+        &app,
+        request("POST", "/workflows", None, Some(&api_key), None),
+    )
+    .await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["used"], 2);
     assert_eq!(body["remaining"], 0);
 
     // Third exceeds the quota.
-    let (status, _) =
-        send(&app, request("POST", "/workflows", None, Some(&api_key), None)).await;
+    let (status, _) = send(
+        &app,
+        request("POST", "/workflows", None, Some(&api_key), None),
+    )
+    .await;
     assert_eq!(status, StatusCode::TOO_MANY_REQUESTS);
 }

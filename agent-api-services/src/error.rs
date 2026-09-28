@@ -90,7 +90,10 @@ mod tests {
             (ApiError::Forbidden, StatusCode::FORBIDDEN),
             (ApiError::NotFound, StatusCode::NOT_FOUND),
             (ApiError::LimitExceeded, StatusCode::TOO_MANY_REQUESTS),
-            (ApiError::BadRequest("bad".to_owned()), StatusCode::BAD_REQUEST),
+            (
+                ApiError::BadRequest("bad".to_owned()),
+                StatusCode::BAD_REQUEST,
+            ),
             (ApiError::Conflict, StatusCode::CONFLICT),
             (
                 ApiError::Database(sqlx::Error::RowNotFound),

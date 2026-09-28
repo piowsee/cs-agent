@@ -18,7 +18,9 @@ pub(crate) async fn create_key(
     Json(body): Json<CreateKeyRequest>,
 ) -> Result<(StatusCode, Json<CreatedKey>), ApiError> {
     if body.workflow_limit < 0 {
-        return Err(ApiError::BadRequest("workflow_limit must be >= 0".to_owned()));
+        return Err(ApiError::BadRequest(
+            "workflow_limit must be >= 0".to_owned(),
+        ));
     }
 
     let generated = key::generate();
@@ -34,7 +36,10 @@ pub(crate) async fn create_key(
     .await
     .map_err(ApiError::from_sqlx)?;
 
-    let created = CreatedKey { api_key: generated.plaintext, key: row.into() };
+    let created = CreatedKey {
+        api_key: generated.plaintext,
+        key: row.into(),
+    };
     Ok((StatusCode::CREATED, Json(created)))
 }
 
@@ -69,7 +74,9 @@ pub(crate) async fn update_key(
         ));
     }
 
-    let row = db::update(&state.pool, id, &body).await?.ok_or(ApiError::NotFound)?;
+    let row = db::update(&state.pool, id, &body)
+        .await?
+        .ok_or(ApiError::NotFound)?;
     Ok(Json(row.into()))
 }
 

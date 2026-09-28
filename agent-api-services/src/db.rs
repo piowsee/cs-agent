@@ -42,10 +42,7 @@ pub(crate) async fn list(pool: &sqlx::PgPool) -> Result<Vec<ApiKeyRow>, sqlx::Er
 }
 
 /// Returns the key with `id`, if it exists.
-pub(crate) async fn get(
-    pool: &sqlx::PgPool,
-    id: Uuid,
-) -> Result<Option<ApiKeyRow>, sqlx::Error> {
+pub(crate) async fn get(pool: &sqlx::PgPool, id: Uuid) -> Result<Option<ApiKeyRow>, sqlx::Error> {
     sqlx::query_as::<_, ApiKeyRow>("SELECT * FROM api_keys WHERE id = $1")
         .bind(id)
         .fetch_optional(pool)

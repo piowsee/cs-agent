@@ -20,6 +20,9 @@ impl AppState {
     /// Builds application state from a pool and the administrator secret.
     #[must_use]
     pub fn new(pool: PgPool, admin_api_key: &str) -> Self {
-        Self { pool, admin_api_key: Arc::from(admin_api_key) }
+        Self {
+            pool,
+            admin_api_key: Arc::from(admin_api_key),
+        }
     }
 }

@@ -24,14 +24,22 @@ pub fn build_router(state: AppState) -> Router {
         .route("/keys", post(admin::create_key).get(admin::list_keys))
         .route(
             "/keys/{id}",
-            get(admin::get_key).patch(admin::update_key).delete(admin::delete_key),
+            get(admin::get_key)
+                .patch(admin::update_key)
+                .delete(admin::delete_key),
         )
-        .layer(middleware::from_fn_with_state(state.clone(), auth::admin_auth));
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth::admin_auth,
+        ));
 
     let authed = Router::new()
         .route("/me", get(keys::me))
         .route("/workflows", post(keys::run_workflow))
-        .layer(middleware::from_fn_with_state(state.clone(), auth::api_key_auth));
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            auth::api_key_auth,
+        ));
 
     Router::new()
         .route("/health", get(health))
