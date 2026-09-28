@@ -1,0 +1,18 @@
+# Keep the Docker build context small and reproducible.
+# The instrumented/target trees are gigabytes — never ship them into the build.
+target/
+**/target/
+
+.git/
+.github/
+.claude/
+
+# Local env & editor cruft
+.env
+**/.env
+*.log
+
+# Docs / assets not needed to compile
+*.md
+image.png
+LICENSE

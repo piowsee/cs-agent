@@ -1,0 +1,24 @@
+{
+  "name": "cs-agent (agent-api-services)",
+
+  "dockerComposeFile": [
+    "docker-compose.yml"
+  ],
+  "service": "dev",
+  "workspaceFolder": "/workspace",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml"
+      ]
+    }
+  },
+
+  // 3000 = API, 6432 = PgBouncer, 5432 = PostgreSQL.
+  "forwardPorts": [3000, 6432, 5432],
+
+  // Warm the dependency cache once the container is created.
+  "postCreateCommand": "cargo fetch"
+}

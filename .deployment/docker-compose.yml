@@ -1,0 +1,80 @@
+# Full-stack deployment for agent-api-services: app -> PgBouncer -> PostgreSQL.
+#
+#   docker compose -f .deployment/docker-compose.yml up --build
+#
+# The app connects to PgBouncer (transaction pooling), not to Postgres directly,
+# so a small connection pool at the app fans out to many pooled client slots.
+#
+# Secrets come from the environment (or .deployment/.env, loaded automatically —
+# see .deployment/.env.example). POSTGRES_PASSWORD and ADMIN_API_KEY are required
+# via `${VAR:?...}`, so prod never boots with an empty password or admin key.
+#
+# SQLx + transaction pooling: SQLx uses prepared statements, which do not survive
+# transaction-mode pooling unless PgBouncer tracks them — hence
+# MAX_PREPARED_STATEMENTS below. (See README "PgBouncer" for the migration
+# caveat around advisory locks.)
+#
+# Build context is the repo root (`..`): the crate inherits from the workspace
+# Cargo.toml / Cargo.lock.
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_DB: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: pgbouncer
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 200
+      DEFAULT_POOL_SIZE: 20
+      MIN_POOL_SIZE: 0
+      RESERVE_POOL_SIZE: 5
+      LISTEN_PORT: 6432
+      SERVER_RESET_QUERY: DISCARD ALL
+      AUTH_TYPE: scram-sha-256
+      # Lets SQLx's prepared statements work under transaction pooling
+      # (PgBouncer >= 1.21). Without it: "prepared statement ... does not exist".
+      MAX_PREPARED_STATEMENTS: 200
+    networks:
+      - backend
+
+  api:
+    build:
+      context: ..
+      dockerfile: .deployment/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@pgbouncer:6432/postgres
+      ADMIN_API_KEY: ${ADMIN_API_KEY:?ADMIN_API_KEY must be set}
+      BIND_ADDR: 0.0.0.0:3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      pgbouncer:
+        condition: service_started
+    networks:
+      - backend
+
+volumes:
+  pgdata:
+
+networks:
+  backend:
