@@ -2,7 +2,7 @@ name: CI
 
 env:
   CARGO_TERM_COLOR: always
-  MSRV: '1.80'
+  MSRV: '1.85'
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
   pull_request:
     branches:
       - main
-      - dev 
+      - dev
 
 jobs:
   check:
@@ -20,6 +20,28 @@ jobs:
     strategy:
       matrix:
         workspace: ["."]
+
+    # Postgres for the test step. `#[sqlx::test]` connects here to spin up an
+    # isolated database per test; the migrate step below also runs against it.
+    # No PgBouncer — tests talk to Postgres directly.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+
     steps:
       - uses: actions/checkout@v6
       - uses: dtolnay/rust-toolchain@beta
@@ -35,5 +57,12 @@ jobs:
         run: cargo fmt --all --check --manifest-path ${{ matrix.workspace }}/Cargo.toml
       - name: Build
         run: cargo build --locked --manifest-path ${{ matrix.workspace }}/Cargo.toml --workspace --all-targets --all-features
+
+      # Apply migrations against the container DB before running the tests.
+      - name: Install sqlx-cli
+        run: cargo install sqlx-cli --version ^0.9 --no-default-features --features rustls,postgres --locked
+      - name: Run database migrations
+        run: sqlx migrate run --source agent-api-services/migrations
+
       - name: Test
         run: cargo test --locked --manifest-path ${{ matrix.workspace }}/Cargo.toml --workspace --all-features

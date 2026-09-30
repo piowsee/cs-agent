@@ -1,0 +1,66 @@
+# Self-contained dev environment for the dev container: db + pgbouncer + dev.
+#
+# This is independent of the prod stack in ../.deployment/ (its own Postgres,
+# its own volume) and of the host-dev db-only compose in
+# ../agent-api-services/docker-compose.yml. Credentials are hardcoded on purpose
+# — this is a throwaway local dev database, not a secret.
+#
+# The `dev` service (Rust toolchain) is what VS Code attaches to; run the app
+# inside it with `cargo run -p agent-api-services`, connecting to PgBouncer.
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pw
+      POSTGRES_DB: agent_api
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d agent_api"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:pw@db:5432/agent_api
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 200
+      DEFAULT_POOL_SIZE: 20
+      MIN_POOL_SIZE: 0
+      RESERVE_POOL_SIZE: 5
+      LISTEN_PORT: 6432
+      SERVER_RESET_QUERY: DISCARD ALL
+      AUTH_TYPE: scram-sha-256
+      # Required for SQLx prepared statements under transaction pooling.
+      MAX_PREPARED_STATEMENTS: 200
+
+  dev:
+    image: mcr.microsoft.com/devcontainers/rust:1-bookworm
+    volumes:
+      # Mount the whole workspace so Cargo sees the workspace root.
+      - ..:/workspace:cached
+      # Persist the Cargo registry across rebuilds for faster `cargo fetch`.
+      - cargo-registry:/usr/local/cargo/registry
+    environment:
+      # Connect through PgBouncer (6432), matching prod. Dev creds, hardcoded.
+      DATABASE_URL: postgresql://postgres:pw@pgbouncer:6432/agent_api
+      ADMIN_API_KEY: change-me-to-a-long-random-secret
+      BIND_ADDR: 0.0.0.0:3000
+    # Keep the container alive; VS Code attaches and you run cargo by hand.
+    command: sleep infinity
+    depends_on:
+      pgbouncer:
+        condition: service_started
+
+volumes:
+  pgdata:
+  cargo-registry:
